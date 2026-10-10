@@ -1,0 +1,6 @@
+{
+  "name": "burnline-band",
+  "version": "0.1.0",
+  "description": "Burnline's usage line as a band above the desktop prompt: 5h and weekly limits with reset countdowns, context fill and session cost.",
+  "author": { "name": "Bruno Magalhães" }
+}

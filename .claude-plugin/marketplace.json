@@ -1,0 +1,6 @@
+{
+  "name": "burnline-band",
+  "description": "Burnline's usage line as a band above the prompt in the Claude desktop app.",
+  "owner": { "name": "Bruno Magalhães" },
+  "plugins": [{ "name": "burnline-band", "source": "./" }]
+}

@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="248" viewBox="0 0 500 124" font-family="'Segoe UI', system-ui, sans-serif">
+  <rect x="0" y="0" width="500" height="124" rx="10" fill="#262624"/>
+  <g font-size="11">
+    <text x="120" y="66" dominant-baseline="middle" fill="#8c8c8c">5h</text>
+    <g transform="translate(138,60)">
+      <rect x="0" y="3" width="64" height="6" rx="3" fill="#8c8c8c" opacity=".3"/>
+      <rect x="0" y="3" width="51" height="6" rx="3" fill="rgb(245,92,97)"/>
+      <rect x="36" y="0" width="2" height="12" rx="1" fill="rgb(214,214,214)"/>
+    </g>
+    <text x="208" y="66" dominant-baseline="middle" font-weight="700" fill="rgb(245,92,97)">80%</text>
+    <text x="236" y="66" dominant-baseline="middle" fill="#8c8c8c">↻ 2:06:53</text>
+    <g transform="translate(138,79)">
+      <rect x="0" y="0" width="3" height="10" rx="1" fill="rgb(245,120,90)"/>
+      <rect x="5" y="0" width="3" height="10" rx="1" fill="rgb(245,120,90)"/>
+    </g>
+    <text x="151" y="84.5" dominant-baseline="middle" fill="rgb(245,120,90)">1:06:53</text>
+  </g>
+  <g stroke="#7a7a78" stroke-width=".75" fill="none">
+    <path d="M160 45V61"/>
+    <path d="M175 29V58"/>
+    <path d="M292 66H306"/>
+    <path d="M165 92V103"/>
+  </g>
+  <g font-size="9.5" fill="#d0d0ce">
+    <text x="166" y="40" text-anchor="end">share of the limit used</text>
+    <text x="171" y="24">where the clock is in the window</text>
+    <text x="310" y="66" dominant-baseline="middle">time until the window resets</text>
+    <text x="138" y="113">idle this long and the clock catches up with your usage</text>
+  </g>
+</svg>
