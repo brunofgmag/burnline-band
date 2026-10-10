@@ -2,6 +2,10 @@ import type { SessionRateLimit, SessionUsage } from 'claude-code'
 
 export type Rgb = readonly [number, number, number]
 
+export type CountdownProps =
+  | { kind: 'reset'; resetsAtMs: number }
+  | { kind: 'ahead'; resetsAtMs: number; used: number; windowSeconds: number }
+
 export type Meter = {
   label: string
   percent: number
@@ -10,6 +14,8 @@ export type Meter = {
   value: string
   detail?: string
   ahead?: string
+  resetCountdown?: CountdownProps
+  aheadCountdown?: CountdownProps
 }
 
 export type Line = { meters: Meter[]; cost?: string }
@@ -103,6 +109,15 @@ const clockPercent = (resetsAtMs: number, nowMs: number, windowSeconds: number):
   return (clamp(windowSeconds - leftSeconds, 0, windowSeconds) / windowSeconds) * 100
 }
 
+export const countdownLabel = (props: CountdownProps, nowMs: number): string =>
+  props.kind === 'reset'
+    ? resetLabel(props.resetsAtMs, nowMs)
+    : aheadLabel(
+        props.used,
+        clockPercent(props.resetsAtMs, nowMs, props.windowSeconds),
+        props.windowSeconds,
+      )
+
 const limitMeter = (
   label: string,
   windowSeconds: number,
@@ -127,7 +142,13 @@ const limitMeter = (
     tone: clamp(0.5 - (clock - used) / 50, 0, 1),
     value,
     detail: resetLabel(resetsAtMs, nowMs),
-    ...(isAhead ? { ahead: aheadLabel(used, clock, windowSeconds) } : {}),
+    resetCountdown: { kind: 'reset', resetsAtMs },
+    ...(isAhead
+      ? {
+          ahead: aheadLabel(used, clock, windowSeconds),
+          aheadCountdown: { kind: 'ahead', resetsAtMs, used, windowSeconds },
+        }
+      : {}),
   }
 }
 
@@ -212,3 +233,18 @@ export const meterAlt = (meter: Meter): string =>
   ]
     .filter(Boolean)
     .join(', ')
+
+const meterFace = (meter: Meter) => [
+  meter.label,
+  meterSvg(meter),
+  meter.value,
+  valueColor(meter.tone),
+  meter.resetCountdown === undefined ? meter.detail : undefined,
+  meter.detail === undefined ? undefined : stableCells(meter.detail),
+  meter.resetCountdown,
+  meter.ahead !== undefined,
+  meter.aheadCountdown,
+]
+
+export const faceOf = (line: Line): string =>
+  JSON.stringify([line.meters.map(meterFace), line.cost])

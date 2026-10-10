@@ -12,7 +12,7 @@ A Claude Code plugin that draws [Burnline](https://github.com/Vijeth-Rai/burnlin
 - `ctx` is how full the context window is, with the token count next to it.
 - The dollar figure is the session's cost so far.
 
-The band redraws every second, so the countdowns tick while you work. It only draws in the desktop app. In a terminal session the plugin steps aside and your status line stays as it was.
+The countdowns tick every second while you work. The bars, percentages, context and cost are checked every 15 seconds and at the end of each turn, and the band redraws only when one of them has changed. A redraw makes the desktop app rebuild what other plugins drew, and their hover highlights blink when that happens, so the band asks for as few as it can. The band only draws in the desktop app. In a terminal session the plugin steps aside and your status line stays as it was.
 
 ## What it is for
 
