@@ -38,13 +38,21 @@ A second row with a pause icon appears when usage is more than 5 points ahead of
 
 ## Install
 
-Run this at the prompt of a terminal `claude` session:
+Run this in a shell. The desktop app's Terminal panel works:
+
+```sh
+claude plugin install burnline-band --marketplace brunofgmag/burnline-band
+```
+
+It installs at the user scope, and the band shows up in the desktop sessions you start afterwards.
+
+From inside a terminal `claude` session you can type the slash command instead:
 
 ```
 /plugin install burnline-band --marketplace brunofgmag/burnline-band
 ```
 
-Answer `y` when it asks to add the marketplace, then pick the user scope. The desktop app's Code tab does not accept `/plugin install`, which is why the install happens in a terminal. Once installed at the user scope, the plugin loads in the desktop sessions you start afterwards.
+Answer `y` when it asks to add the marketplace, then pick the user scope. Typing that slash command at the desktop app's prompt does not install anything. The app opens its plugin catalog, which does not list this repository.
 
 The plugin was written and tested on Claude Code 2.1.296. It needs a build that loads plugin hooks modules.
 
