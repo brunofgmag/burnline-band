@@ -2,6 +2,7 @@ import type { On, RenderElement } from 'claude-code'
 import { expect, mock, test } from 'claude-code/testing'
 
 import Countdown from '../hooks/countdown'
+import { register } from '../hooks/register'
 import {
   AHEAD_COLOR,
   aheadLabel,
@@ -9,6 +10,7 @@ import {
   compactTokens,
   faceOf,
   resetLabel,
+  withoutCountdowns,
   type CountdownProps,
   type Meter,
 } from '../hooks/line'
@@ -571,4 +573,155 @@ test('while a survey holds the band a usage change asks for no redraw', async ($
 
   expect(world.redraws).toBe(0)
   await ui.unmount()
+})
+
+const FAULT = {
+  surface: 'desktop',
+  component: 'AbovePrompt',
+  requestId: 'req-1',
+  element: 'reset-5h',
+  module: 'hooks/countdown.tsx',
+  phase: 'render',
+  reason: 'an instance of hooks/countdown.tsx did not answer a render within 2000ms of a loaded frame',
+} as const
+
+const WEEK_ONLY = {
+  ...usageWith(1),
+  rateLimits: [{ kind: 'seven_day', percentUsed: 13, resetsAt: new Date(WEEK_RESET).toISOString() }],
+}
+
+type Node = { type: string; props: Record<string, unknown> }
+type Hook = (...args: unknown[]) => Promise<unknown>
+
+const nodesIn = (tree: unknown): Node[] => {
+  if (Array.isArray(tree)) {
+    return tree.flatMap(nodesIn)
+  }
+
+  if (tree === null || typeof tree !== 'object') {
+    return []
+  }
+
+  const node = tree as Node
+
+  return [node, ...nodesIn(node.props.children)]
+}
+
+const driven = (usage: unknown) => {
+  const hooks: Record<string, Hook> = {}
+  const ticks: Array<() => Promise<unknown>> = []
+  const world = { usage, nowMs: NOW, redraws: 0 }
+  const element = (type: string) => (props: Record<string, unknown>) => ({ type, props })
+  const $ = {
+    session: { usage: async () => world.usage },
+    clock: {
+      now: async () => world.nowMs,
+      every: (_ms: number, tick: () => Promise<unknown>) => ticks.push(tick),
+    },
+    ui: {
+      invalidate: () => {
+        world.redraws += 1
+      },
+      resolve: () => ({
+        Box: element('Box'),
+        Svg: element('Svg'),
+        Text: element('Text'),
+        Client: element('Client'),
+      }),
+    },
+  }
+  const next = async (e: unknown) => e
+  const draw = { surface: 'desktop', props: { hasSurvey: false } }
+
+  register(((name: string, ...rest: Hook[]) => {
+    hooks[name] = rest[rest.length - 1] as Hook
+  }) as never, {} as never)
+
+  return {
+    world,
+    render: async () => nodesIn(await hooks['ui.render']?.($, draw, next)),
+    fault: (e: unknown) => hooks['ui.fault']?.($, e, next),
+    tick: async (ms: number) => {
+      world.nowMs += ms
+      await ticks[0]?.()
+    },
+  }
+}
+
+const textsOf = (nodes: Node[]) => nodes.filter(node => node.type === 'Text')
+const shownBy = (node: Node) => [node.props.children].flat().join('')
+const clientsOf = (nodes: Node[]) => nodes.filter(node => node.type === 'Client')
+
+test('the plugin hears ui.fault, observes it and passes the fault on unchanged', async () => {
+  const band = driven(usageWith(80))
+  const hooked = band.fault(FAULT)
+
+  expect(await hooked).toEqual(FAULT)
+})
+
+test('after the countdown module faults the band draws the reset labels and the pause reading as text', async () => {
+  const band = driven(usageWith(80))
+
+  expect(clientsOf(await band.render())).toHaveLength(3)
+
+  await band.fault(FAULT)
+  const nodes = await band.render()
+  const labels = textsOf(nodes).map(shownBy)
+  const pause = textsOf(nodes).find(node => shownBy(node) === '1:06:53')
+
+  expect(clientsOf(nodes)).toHaveLength(0)
+  expect(labels).toEqual(expect.arrayContaining(['↻ 2:06:53', '↻ Mon 12am', '1:06:53']))
+  expect(pause?.props.color).toBe(AHEAD_COLOR)
+})
+
+test('after the countdown module faults a 15 second tick with the usage unchanged asks for one redraw', async () => {
+  const band = driven(usageWith(1))
+  await band.render()
+  await band.fault(FAULT)
+  await band.render()
+  expect(band.world.redraws).toBe(0)
+
+  await band.tick(15_000)
+  expect(band.world.redraws).toBe(1)
+})
+
+test('after the countdown module faults a tick that leaves every text unchanged asks for no redraw', async () => {
+  const band = driven(WEEK_ONLY)
+  await band.render()
+  await band.fault(FAULT)
+  await band.render()
+
+  await band.tick(15_000)
+  await band.tick(15_000)
+  expect(band.world.redraws).toBe(0)
+})
+
+test('a fault of another module leaves the three countdown clients in place', async () => {
+  const band = driven(usageWith(80))
+  await band.render()
+  await band.fault({ ...FAULT, module: 'hooks/other.tsx' })
+
+  expect(clientsOf(await band.render())).toHaveLength(3)
+})
+
+test('without the countdowns the face moves with the clock and the line keeps its texts and cost', () => {
+  const at = (nowMs: number) => buildLine(usageWith(80) as never, nowMs)
+  const bare = withoutCountdowns(at(NOW))
+  const [fiveHour, week] = bare.meters as [Meter, Meter]
+
+  expect(faceOf(bare)).not.toBe(faceOf(withoutCountdowns(at(NOW + 1000))))
+  expect(bare.meters.some(meter => 'resetCountdown' in meter || 'aheadCountdown' in meter)).toBe(false)
+  expect(fiveHour.detail).toBe('↻ 2:06:53')
+  expect(fiveHour.ahead).toBe('1:06:53')
+  expect(week.detail).toBe('↻ Mon 12am')
+  expect(bare.cost).toBe('$1.08')
+})
+
+test('the face counts the pause text once nothing ticks it', () => {
+  const line = withoutCountdowns(buildLine(usageWith(80) as never, NOW))
+  const [fiveHour, ...rest] = line.meters as [Meter, ...Meter[]]
+
+  expect(faceOf({ ...line, meters: [{ ...fiveHour, ahead: '1:06:52' }, ...rest] })).not.toBe(
+    faceOf(line),
+  )
 })

@@ -1,6 +1,7 @@
 import type { Register, SessionUsage, Timer } from 'claude-code'
 
 import {
+  AHEAD_COLOR,
   buildLine,
   faceOf,
   meterAlt,
@@ -12,6 +13,7 @@ import {
   PAUSE_WIDTH,
   stableCells,
   valueColor,
+  withoutCountdowns,
   type CountdownProps,
   type Meter,
 } from './line'
@@ -28,12 +30,19 @@ const countdownKey = (kind: CountdownProps['kind'], meter: Meter) => `${kind}-${
 export const register: Register = on => {
   let refresh: Timer | undefined
   let drawn: string | undefined
+  let isCountdownDown = false
+
+  const lineOf = (usage: SessionUsage, nowMs: number) => {
+    const line = buildLine(usage, nowMs)
+
+    return isCountdownDown ? withoutCountdowns(line) : line
+  }
 
   const redrawIfChanged = async (read: Reading, redraw: () => void) => {
     try {
       const [usage, nowMs] = await read()
 
-      if (drawn !== undefined && faceOf(buildLine(usage, nowMs)) !== drawn) {
+      if (drawn !== undefined && faceOf(lineOf(usage, nowMs)) !== drawn) {
         redraw()
       }
     } catch {
@@ -57,7 +66,7 @@ export const register: Register = on => {
 
     const [usage, nowMs] = await Promise.all([$.session.usage(), $.clock.now()])
     const { Box, Svg, Text, Client } = $.ui.resolve(e)
-    const line = buildLine(usage, nowMs)
+    const line = lineOf(usage, nowMs)
     drawn = faceOf(line)
     const detailOf = (meter: Meter) =>
       meter.resetCountdown === undefined ? (
@@ -103,11 +112,15 @@ export const register: Register = on => {
               <Box flexDirection="row" alignItems="center" columnGap={1}>
                 <Box minWidth={LABEL_CELLS} />
                 <Svg source={PAUSE_ICON} alt="pause" width={PAUSE_WIDTH} height={PAUSE_HEIGHT} />
-                <Client
-                  key={countdownKey('ahead', meter)}
-                  module="./countdown.tsx"
-                  props={meter.aheadCountdown}
-                />
+                {meter.aheadCountdown === undefined ? (
+                  <Text color={AHEAD_COLOR}>{meter.ahead}</Text>
+                ) : (
+                  <Client
+                    key={countdownKey('ahead', meter)}
+                    module="./countdown.tsx"
+                    props={meter.aheadCountdown}
+                  />
+                )}
               </Box>
             )}
           </Box>
@@ -115,6 +128,14 @@ export const register: Register = on => {
         {line.cost === undefined ? null : <Text dimColor>{line.cost}</Text>}
       </Box>
     )
+  })
+
+  on('ui.fault', ($, e, next) => {
+    if (e.module.endsWith('countdown.tsx')) {
+      isCountdownDown = true
+    }
+
+    return next(e)
   })
 
   on('turn.complete', async ($, e, next) => {

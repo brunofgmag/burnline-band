@@ -184,6 +184,11 @@ export const buildLine = (usage: SessionUsage, nowMs: number): Line => {
   }
 }
 
+export const withoutCountdowns = (line: Line): Line => ({
+  ...line,
+  meters: line.meters.map(({ resetCountdown, aheadCountdown, ...meter }) => meter),
+})
+
 const fillWidth = (percent: number): number => {
   const width = (clamp(percent, 0, 100) / 100) * METER_WIDTH
 
@@ -244,6 +249,7 @@ const meterFace = (meter: Meter) => [
   meter.resetCountdown,
   meter.ahead !== undefined,
   meter.aheadCountdown,
+  meter.aheadCountdown === undefined ? meter.ahead : undefined,
 ]
 
 export const faceOf = (line: Line): string =>
